@@ -1,0 +1,12 @@
+# github.com/algorand/go-algorand-sdk v1.24.0
+## explicit; go 1.17
+github.com/algorand/go-algorand-sdk/crypto
+github.com/algorand/go-algorand-sdk/encoding/msgpack
+github.com/algorand/go-algorand-sdk/mnemonic
+github.com/algorand/go-algorand-sdk/types
+# github.com/algorand/go-codec/codec v1.1.10
+## explicit; go 1.16
+github.com/algorand/go-codec/codec
+# golang.org/x/crypto v0.43.0
+## explicit; go 1.24.0
+golang.org/x/crypto/ed25519
