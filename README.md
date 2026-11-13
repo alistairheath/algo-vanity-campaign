@@ -21,17 +21,17 @@ You can also skip the build and use `go run . [-prefix=...]` in place of `./vani
 
 ```sh
 ./vanity                 # searches for the default prefix, ALGO
-./vanity -prefix=AJH     # searches for a prefix you choose
+./vanity -prefix=HELLO   # searches for a prefix you choose
 ```
 
 Example output:
 
 ```
-Searching for prefix="AJH" using 14 workers (batch=1000, interval=1.00s)
+Searching for prefix="ALGO" using 14 workers (batch=1000, interval=1.00s)
 [1.0s] Attempts:       861184 (Δ  861184)  Rate:  861184.00/s
 
 ---- FOUND! ----
-Address: AJH...
+Address: ALGO...
 Mnemonic: word1 word2 ... word25
 PrivateKey (hex): ...
 Total attempts: 1234567
