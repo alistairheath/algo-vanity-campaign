@@ -62,14 +62,18 @@ func main() {
 	// from secure random seeds. searchBatch spawns its own workers and runs
 	// until ctx is cancelled (attempts == 0). progress keeps globalAttempts
 	// current so the live rate printout keeps working.
-	go searchBatch(ctx, prefix, 0, workers, &globalAttempts, func(a crypto.Account) {
-		if atomic.CompareAndSwapUint32(&found, 0, 1) {
-			select {
-			case resultChan <- a:
-			case <-ctx.Done():
+	searchDone := make(chan struct{})
+	go func() {
+		defer close(searchDone)
+		searchBatch(ctx, prefix, 0, workers, &globalAttempts, func(a crypto.Account) {
+			if atomic.CompareAndSwapUint32(&found, 0, 1) {
+				select {
+				case resultChan <- a:
+				case <-ctx.Done():
+				}
 			}
-		}
-	})
+		})
+	}()
 
 	// Printer ticker
 	ticker := time.NewTicker(time.Duration(printInterval*1000) * time.Millisecond)
@@ -83,6 +87,10 @@ loop:
 		case acc := <-resultChan:
 			// We have a result — cancel the search and print
 			cancel()
+			// Wait for the workers to finish their last chunk so every attempt
+			// is in the counter before it is read (a quick match would
+			// otherwise print 0).
+			<-searchDone
 			total := atomic.LoadUint64(&globalAttempts)
 			elapsed := time.Since(start).Seconds()
 			rate := float64(total) / elapsed
