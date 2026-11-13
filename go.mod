@@ -1,4 +1,4 @@
-module github.com/alistairheath/algovanity
+module github.com/alistairheath/algorand-vanity-address-generator
 
 go 1.25.3
 
