@@ -32,7 +32,8 @@ func main() {
 	flag.Parse()
 
 	if prefix == "" {
-		fmt.Println("Usage: go run main.go -prefix=AJH [-workers=8] [-interval=1.0]")
+		fmt.Println("Algorand Vanity Address Generator")
+		fmt.Println("Usage: go run . -prefix=AJH [-workers=8] [-interval=1.0]")
 		os.Exit(1)
 	}
 
