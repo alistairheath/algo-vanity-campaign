@@ -74,6 +74,31 @@ These are averages. You can get lucky or unlucky, and the tool runs until it fin
 
 This writes `out/matches.jsonl` (one `{"address","private_key"}` per match) and `out/result.json` (`{"attempts","prefix","matches"}`).
 
+## Python version
+
+The `python/` folder has the original Python scripts (`generate.py`, `generate-multi.py`, `vanity-time.py`) and the same improvement as the Go version.
+
+- `python/vanity_fast.py` checks the prefix against the raw public key instead of building the address string for every attempt. It gives the same result as `str.startswith` on the address, and every candidate is still a real ed25519 account from `os.urandom`.
+- `python/benchmark.py` checks that the fast matcher agrees with `str.startswith`, then times the original method against the improved one in a single process.
+
+```sh
+python3 -m venv vanity-env
+source vanity-env/bin/activate
+python -m pip install py-algorand-sdk
+cd python
+python benchmark.py                 # 3 rounds of 10 seconds per method
+python benchmark.py --seconds 5 --rounds 1
+```
+
+Result on a 14-core Apple Silicon Mac (single process, Python 3.9, 3 rounds of 10 seconds):
+
+| Method | Attempts per second | Speedup |
+|---|---|---|
+| Original (`account.generate_account()` and `startswith`) | about 16,300 | 1x |
+| Improved (`vanity_fast.search`) | about 19,800 | 1.21x |
+
+The gain is smaller than in Go because the ed25519 key derivation takes most of each attempt in Python as well, so only the address-string work can be saved.
+
 ## Security
 
 - The mnemonic and private key give full control of the account. Anyone who sees them can spend the funds.
