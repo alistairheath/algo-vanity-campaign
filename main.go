@@ -23,7 +23,7 @@ func main() {
 	var count uint64
 	var outDir string
 
-	flag.StringVar(&prefix, "prefix", "", "Prefix to search for (case-sensitive). Example: DIIISCO")
+	flag.StringVar(&prefix, "prefix", "ALGO", "Prefix to search for (case-sensitive; A-Z and 2-7 only). Example: DIIISCO")
 	flag.IntVar(&workers, "workers", 0, "Number of worker goroutines (default: number of CPUs)")
 	flag.IntVar(&batch, "batch", 1000, "Retained for compatibility (the shared search batches entropy internally)")
 	flag.Float64Var(&printInterval, "interval", 1.0, "Status print interval in seconds")
@@ -33,7 +33,7 @@ func main() {
 
 	if prefix == "" {
 		fmt.Println("Algorand Vanity Address Generator")
-		fmt.Println("Usage: go run . -prefix=AJH [-workers=8] [-interval=1.0]")
+		fmt.Println("Usage: go run . [-prefix=ALGO] [-workers=8] [-interval=1.0]")
 		os.Exit(1)
 	}
 

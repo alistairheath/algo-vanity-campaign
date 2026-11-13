@@ -15,12 +15,13 @@ Every candidate is a real ed25519 account made from a cryptographically secure r
 go build -o vanity .
 ```
 
-You can also skip the build and use `go run . -prefix=...` in place of `./vanity -prefix=...` below.
+You can also skip the build and use `go run . [-prefix=...]` in place of `./vanity [-prefix=...]` below.
 
 ## Usage
 
 ```sh
-./vanity -prefix=AJH
+./vanity                 # searches for the default prefix, ALGO
+./vanity -prefix=AJH     # searches for a prefix you choose
 ```
 
 Example output:
@@ -41,7 +42,7 @@ Elapsed: 1.43s, Avg rate: 863000.00/s
 
 | Flag | Default | Description |
 |---|---|---|
-| `-prefix` | (required) | Address prefix to look for. Case-sensitive. |
+| `-prefix` | `ALGO` | Address prefix to look for. Case-sensitive. |
 | `-workers` | number of CPUs | Number of worker goroutines. |
 | `-interval` | `1.0` | Seconds between status lines. |
 | `-batch` | `1000` | Kept for compatibility. It has no effect. |
