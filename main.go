@@ -2,73 +2,17 @@ package main
 
 import (
 	"context"
-	//"crypto/ed25519"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/algorand/go-algorand-sdk/crypto"
 	"github.com/algorand/go-algorand-sdk/mnemonic"
 )
-
-func worker(ctx context.Context, wg *sync.WaitGroup, prefix string, batch int, globalAttempts *uint64, found *uint32, resultChan chan<- crypto.Account) {
-	defer wg.Done()
-
-	local := 0
-	for {
-		// Check for cancellation / found
-		select {
-		case <-ctx.Done():
-			// flush
-			if local > 0 {
-				atomic.AddUint64(globalAttempts, uint64(local))
-			}
-			return
-		default:
-		}
-
-		// Generate an Algorand account (crypto.GenerateAccount)
-		acc := crypto.GenerateAccount()
-		local++
-
-		// Convert address to string and check prefix
-		addrStr := acc.Address.String()
-		if strings.HasPrefix(addrStr, prefix) {
-			// publish result (first one wins)
-			// We attempt to set found flag atomically. If we succeed, send result.
-			if atomic.CompareAndSwapUint32(found, 0, 1) {
-				// send result (non-blocking with context check)
-				select {
-				case resultChan <- acc:
-				case <-ctx.Done():
-				}
-				// flush local
-				if local > 0 {
-					atomic.AddUint64(globalAttempts, uint64(local))
-				}
-				return
-			} else {
-				// someone else found it; stop
-				if local > 0 {
-					atomic.AddUint64(globalAttempts, uint64(local))
-				}
-				return
-			}
-		}
-
-		// Flush local counter periodically to reduce contention
-		if local >= batch {
-			atomic.AddUint64(globalAttempts, uint64(local))
-			local = 0
-		}
-	}
-}
 
 func main() {
 	// CLI flags
@@ -81,14 +25,14 @@ func main() {
 
 	flag.StringVar(&prefix, "prefix", "", "Prefix to search for (case-sensitive). Example: DIIISCO")
 	flag.IntVar(&workers, "workers", 0, "Number of worker goroutines (default: number of CPUs)")
-	flag.IntVar(&batch, "batch", 1000, "Local attempts before flushing to global counter")
+	flag.IntVar(&batch, "batch", 1000, "Retained for compatibility (the shared search batches entropy internally)")
 	flag.Float64Var(&printInterval, "interval", 1.0, "Status print interval in seconds")
 	flag.Uint64Var(&count, "count", 0, "Benchmark mode: stop after this many attempts and write matches to -out")
 	flag.StringVar(&outDir, "out", "", "Benchmark mode: directory for matches.jsonl and result.json")
 	flag.Parse()
 
 	if prefix == "" {
-		fmt.Println("Usage: go run main.go -prefix=AJH [-workers=8] [-batch=1000] [-interval=1.0]")
+		fmt.Println("Usage: go run main.go -prefix=AJH [-workers=8] [-interval=1.0]")
 		os.Exit(1)
 	}
 
@@ -108,15 +52,24 @@ func main() {
 	var found uint32 = 0
 	resultChan := make(chan crypto.Account, 1)
 
-	// Context to cancel workers when found
+	// Context to stop the search when a match is found (or externally).
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go worker(ctx, &wg, prefix, batch, &globalAttempts, &found, resultChan)
-	}
+	// The interactive -prefix search runs the SAME shared fast path as the
+	// -count benchmark (searchBatch in search.go): the byte-level
+	// prefixMatcher (prefix.go) and batched entropy, with real ed25519 accounts
+	// from secure random seeds. searchBatch spawns its own workers and runs
+	// until ctx is cancelled (attempts == 0). progress keeps globalAttempts
+	// current so the live rate printout keeps working.
+	go searchBatch(ctx, prefix, 0, workers, &globalAttempts, func(a crypto.Account) {
+		if atomic.CompareAndSwapUint32(&found, 0, 1) {
+			select {
+			case resultChan <- a:
+			case <-ctx.Done():
+			}
+		}
+	})
 
 	// Printer ticker
 	ticker := time.NewTicker(time.Duration(printInterval*1000) * time.Millisecond)
@@ -128,10 +81,8 @@ loop:
 	for {
 		select {
 		case acc := <-resultChan:
-			// We have a result — cancel workers and print
+			// We have a result — cancel the search and print
 			cancel()
-			// Wait for workers to exit (they will flush local counters)
-			wg.Wait()
 			total := atomic.LoadUint64(&globalAttempts)
 			elapsed := time.Since(start).Seconds()
 			rate := float64(total) / elapsed
@@ -171,7 +122,4 @@ loop:
 			break loop
 		}
 	}
-
-	// Ensure goroutines finished
-	wg.Wait()
 }
